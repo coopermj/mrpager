@@ -118,7 +118,7 @@ app.get('/', function(req, res){
   // The form's action is '/' and its method is 'POST',
   // so the `app.post('/', ...` route will receive the
   // result of our form
-  var html = '<form action="/" method="post">' +
+  /*var html = '<form action="/" method="post">' +
                'Enter your name:' +
                '<input type="text" name="userName" placeholder="..." />' +
                '<br>' +
@@ -126,7 +126,13 @@ app.get('/', function(req, res){
                '<input type="text" name="phoneNo" placeholder="xxx-xxx-xxxx" />' +
                '<br>' +
                '<button type="submit">Submit</button>' +
-            '</form>';
+            '</form>';*/
+
+  var html = '<title>Welcome to Mr. Pager</title>\n' +
+          '<a href="/public/entry.html">Concierge Page</a>\n' +
+          '<a href="/public/pagelist.html">Service Counter Page</a>\n' +
+          '<a href="/public/status.html">Status Board</a>\n' + 
+          '<a href="/public/admin.html">Config</a>\n';
                
   res.send(html);
 });
