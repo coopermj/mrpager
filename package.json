@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name" : "mrpager",
+  "description" : "A method for setting up a waiting list using cell phones as pagers.",
+  "author" : "Micah Cooper <coopermj@meebles.org>",
+  "dependencies": {
+    "express": "4.x.x",
+    "moment" : "*",
+    "twilio" : "*",
+    "mongoose": "*",
+    "nconf"  : "*",
+    "mongodb-uri" : "*"
+  },
+  "version" : "0.0.1"
+}

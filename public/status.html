@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script>
+	function loadXMLDoc() {
+		var xmlhttp;
+		var xmlhttp2;
+
+		xmlhttp = new XMLHttpRequest();
+		xmlhttp2 = new XMLHttpRequest();
+
+		xmlhttp.open("GET","/average",false);
+		xmlhttp.send();
+		document.getElementById("myDiv").innerHTML=xmlhttp.responseText; 
+
+		
+		xmlhttp2.open("GET","/currentlist",false);
+		xmlhttp2.send();
+		document.getElementById("nowPaging").innerHTML=xmlhttp2.responseText;		
+	}
+	</script>
+	<script>
+		setInterval( "loadXMLDoc();", 9000 ); 
+	</script>
+</head>
+<body onload="loadXMLDoc()">
+	
+	<h1>Welcome to the Miami University Bookstore &amp; Technology Repair Center</h1>
+	<p>During this time of high demand, we ask that you please check in with our concierge and we will page you when a technician is available.</p>
+
+	<h3>Estimated Wait Time</h3>
+	<div id='myDiv'>
+		
+	</div>
+
+	<h3>Recently Paged</h3>
+	<div id='nowPaging'>
+		
+	</div>
+
+
+</body>
+</html>

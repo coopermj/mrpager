@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body onload='loadDefault()'>
+	<script>
+		function loadDefault() {
+				xmlhttp=new XMLHttpRequest();
+				xmlhttp.open("GET","/pagetext",false);
+				xmlhttp.send();
+				//document.getElementById("myDiv").innerHTML=xmlhttp.responseText;				
+
+				var elem = document.getElementById("firstPage");
+				elem.value = xmlhttp.responseText;
+			}
+	</script>
+
+	<form id='pageText' method="post" action='/postSMS'>
+		Enter text for page:
+        <input type="text" id='firstPage' class='tba1' name="firstPage" />
+        <br>
+
+	</form>
+
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script src="funcs.js"></script>
+	<script>
+		setInterval( "pageStarter();", 9000 ); 
+	</script>
+</head>
+<body onload="pageStarter()">
+
+
+	<div id='listOfPageesHead'>
+		<h2>Current waiting list</h2>
+		<div id='listOfPagees'>
+		</div>
+	</div>
+
+	<div id='listOfInvitedHead'>
+		<h3>Paged, but not arrived</h3>
+		<div id='listOfInvited'>
+		</div>
+	</div>
+
+
+	<button type="button" onclick="pageStarter()">Update List</button>
+
+
+
+</body>
+
+</html>
+
+
+

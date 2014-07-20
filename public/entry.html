@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script src="funcs.js"></script>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+	<script>
+		setInterval( "loadXMLDoc();", 9000 ); 
+	</script>
+
+</head>
+<body onload="pageStarter()">
+
+	<div id='pageeEntry'>
+		<!-- <form id='newCustomer' action="/submitNew" method="post"> -->
+		<form id='newCustomer' method="post">
+        Enter customer name:
+        <input type="text" id='userName' name="userName" placeholder="..." />
+        <br>
+        Phone number:
+        <input type="text" name="phoneNo" placeholder="xxx-xxx-xxxx" />
+        <br>
+        Brief Description:
+        <input type="textbox" maxlength='125' type="text" wrap="true" cols='40' rows='2' class='tb1' name="complaint" placeholder="" />
+        <br>
+        <button type="button" size='200' onclick="submitEntry()">Submit</button>
+        </form>
+	</div>
+
+	<div id='listOfPageesHead'>
+		<h2>Current waiting list</h2>
+		<div id='listOfPagees'>
+		</div>
+	</div>
+
+	<div id='listOfInvitedHead'>
+		<h3>Paged, but not arrived</h3>
+		<div id='listOfInvited'>
+		</div>
+	</div>
+
+
+	<button type="button" onclick="loadXMLDoc()">Update List</button>
+
+
+
+</body>
+
+</html>
+
+
+
