@@ -9,6 +9,7 @@
     "twilio" : "*",
     "mongoose": "*",
     "nconf"  : "*",
+    "body-parser" : "*",
     "mongodb-uri" : "*"
   },
   "version" : "0.0.1"
