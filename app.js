@@ -72,7 +72,8 @@ db.once('open', function() {
       pageCount: { type: Number, default: 0 },
       lastPaged: Date,
       firstPaged: Date,
-      arrived: Date
+      arrived: Date,
+      reply: { type: String, default: '' }
   });
 
   Event = mongoose.model('Event', eventSchema);
@@ -341,7 +342,7 @@ app.get('/doarrived:id', function(req, res) {
         Customer.find({status: 'paged'}, null, {_id: -1}, function(err,customers) {
           var html = buildPagedTable(customers);
           res.send(html);
-          console.log(html);
+          //console.log(html);
         }); 
         //res.send('arrived: ' + req.params.id);
       }
@@ -685,6 +686,12 @@ function buildPagedTable (customers) {
       html += '<td>\n' + '<button type="button" id="' + customer._id + '"  onclick="doPage(' + '\'' + customer._id + '\'' + ')" >' + pageLabel + '</button>' +'</td>\n';
       html += '<td>\n' + '<button type="button" onclick="doArrived(' + '\'' + customer._id + '\'' + ')" >' + 'Arrived' + '</button>' +'</td>\n';
       html += '<td>\n' + '<button type="button" onclick="doRemove(' + '\'' + customer._id + '\'' + ')" >' + 'Remove' + '</button>' +'</td>\n';
+
+      // we'll put their sms reply at the end so it doesn't move the buttons away for all the choices
+      if (customer.reply) {
+        html += '<td>' + customer.reply + '</td>\n';  
+      }
+      
   
       html += '</tr>\n';
       //console.log(html);
@@ -929,7 +936,7 @@ app.post('/submitNew', function(req, res){
       var html = buildTableToPage(customers);
       //res.sendfile('public/entry.html', {root: __dirname })
       res.send(html);
-      console.log(html);
+      //console.log(html);
     });
 
   });
@@ -947,47 +954,95 @@ app.post('/respondToVoiceCall', function(req, res) {
     //Validate that this request really came from Twilio...
     if (twilio.validateExpressRequest(req, twiAuthToken)) {
         var twiml = new twilio.TwimlResponse();
-        var MessageSid = req.body.MessageSid;
-        var AccountSid = req.body.AccountSid;
-        var From = req.body.From;
-        var To = req.body.To;
-        var Body = req.body.Body;
-        var FromCity = req.body.FromCity;
-        var FromState = req.body.FromState
-        var FromZip = req.body.FromZip
-        var FromCountry = req.body.FromCountry
 
-        twiml.message('Thanks for your message! It has been relayed to our staff.')
-            //.play('https://api.twilio.com/cowbell.mp3');
+
+        twiml.say('Thanks for calling us, but this is an SMS only line. Please give us a call.')
+            .play('https://api.twilio.com/cowbell.mp3');
 
         res.type('text/xml');
         res.send(twiml.toString());
 
         // retrieve SMS and log it to our system
         // see https://www.twilio.com/docs/api/rest/sms
-        var accountSid = twiSID;
-        var authToken = twiAuthToken;
-        var client = require('twilio')(accountSid, authToken);
-        client.sms.messages(MessageSid).get(function(err, sms) {
-          console.log(sms.body);
-        });
+        
     }
     else {
         res.send('you are not twilio.  Buzz off.');
     }
 });
 
+app.get('/incomingSMS', function(req, res) {
+  console.log('get incoming SMS');
+  res.send('hi');
+})
+
 app.post('/incomingSMS', function(req, res) {
-  if (twilio.validateExpressRequest(req, twiAuthToken)) {
+  console.log('post - incoming SMS!');
+  //res.send('quick return');
+
+  //if (twilio.validateExpressRequest(req, twiAuthToken)) {
     var twiml = new twilio.TwimlResponse();
+    var MessageSid = req.body.MessageSid;
+    var AccountSid = req.body.AccountSid;
+    var From = req.body.From;
+    var To = req.body.To;
+    var Body = req.body.Body;
+    var FromCity = req.body.FromCity;
+    var FromState = req.body.FromState
+    var FromZip = req.body.FromZip
+    var FromCountry = req.body.FromCountry
 
-    twiml.message('');
+    
+
+    var searchNum = From.substr(2);
+
+    console.log('searchnum: ' + searchNum);
 
 
-  }
-  else {
+    Customer.findOne({custPhoneNo: searchNum, status:'paged'}, function(err,customer) {
+      console.log ('In search for phoneNo');
+
+      //customers.forEach(function(customer) {
+      console.log('found a match');
+
+      console.log(customer);
+
+      if (customer.reply) {
+        customer.reply += '<hr>' + Body;
+      }
+      else {
+        customer.reply = Body;
+      }
+      //});
+
+      customer.save(function (err) {
+        console.log('in save');
+        if (err) {
+          console.log(err);
+          twiml.message('Sorry — your message did not come through. Please come talk to us.');
+          res.type('text/xml');
+          res.send(twiml.toString());
+          return;
+        } 
+        else {
+          twiml.message('Thanks for your message! It has been relayed to our staff.');
+          res.type('text/xml');
+          res.send(twiml.toString());
+        }
+      });
+    });
+
+    /*var accountSid = twiSID;
+    var authToken = twiAuthToken;
+    var client = require('twilio')(accountSid, authToken);
+    client.sms.messages(MessageSid).get(function(err, sms) {
+      console.log(sms.body);
+    });*/
+  //}
+  /*else {
     res.send('you are not twilio.  Buzz off.');
-  }
+    console.log('rejected request');
+  }*/
 });
 
 //app.post('/page/:task_id', tasks.markCompleted);
