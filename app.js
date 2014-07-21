@@ -16,6 +16,39 @@ nconf.file({
 var smsText = nconf.get('smsText');
 
 
+// if we're using AppFog, we may be using a bound database
+if (process.env.VCAP_SERVICES) {
+  //console.log('process env: ' + process.env.VCAP_SERVICES);
+  var env = JSON.parse(process.env.VCAP_SERVICES);
+  var mongo = env['mongodb2-2.4.8'][0]['credentials'];
+}
+else {
+  var mongo = {
+    'hostname': nconf.get('mongoHost'),
+    'port': nconf.get('mongoPort'),
+    'username': nconf.get('mongoUser'),
+    'password': nconf.get('mongoPass'),
+    'name': '',
+    'db': nconf.get('mongoDB')
+  }
+}
+
+var generate_mongo_url = function(obj){
+    obj.hostname = (obj.hostname || 'localhost');
+    obj.port = (obj.port || 27017);
+    obj.db = (obj.db || 'test');
+    if(obj.username && obj.password){
+        return "mongodb://" + obj.username + ":" + obj.password + "@" + obj.hostname + ":" + obj.port + "/" + obj.db;
+    }
+    else{
+        return "mongodb://" + obj.hostname + ":" + obj.port + "/" + obj.db;
+    }
+}
+var mongourl = generate_mongo_url(mongo);
+var mongooseUri = uriUtil.formatMongoose(mongourl);
+
+
+
 // Create a new REST API client to make authenticated requests against the
 // twilio back end
 var twiSID = nconf.get('TWILIO_ACCOUNT_SID');
@@ -23,9 +56,12 @@ var twiAuthToken = nconf.get('TWILIO_AUTH_TOKEN');
 var client = new twilio.RestClient(twiSID, twiAuthToken);
 var myPhoneNo = nconf.get('twilioNumber')
 
+
 // set up our database connection for logging
 var options = { server: { socketOptions: { keepAlive: 1, connectTimeoutMS: 30000 } }, 
                 replset: { socketOptions: { keepAlive: 1, connectTimeoutMS : 30000 } } };       
+
+/*
 var mongoUser = nconf.get('mongoUser');
 var mongoPass = nconf.get('mongoPass');
 var mongoHost = nconf.get('mongoHost');
@@ -34,6 +70,7 @@ var mongoDB = nconf.get('mongoDB');
 var mongodbUri = 'mongodb://' + mongoUser + ':' + mongoPass + '@' + mongoHost + ':' + mongoPort + '/' + mongoDB;
 //var mongodbUri = 'mongodb://user:pass@host:port/db';
 var mongooseUri = uriUtil.formatMongoose(mongodbUri);
+*/
 
 mongoose.connect(mongooseUri, options);
 var db = mongoose.connection;             
