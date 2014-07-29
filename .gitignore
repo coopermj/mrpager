@@ -5,3 +5,4 @@ config.json
 ._*
 .Spotlight-V100
 .Trashes
+*/node_modules/*
