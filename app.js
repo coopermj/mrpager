@@ -1,9 +1,15 @@
 var express = require('express');
+var path = require('path');
+var session = require('express-session');
 var moment = require('moment');
 var nconf = require('nconf');
 var twilio = require('twilio');
 var mongoose = require('mongoose');
 var uriUtil = require('mongodb-uri');
+var passport = require('passport')
+  , LocalStrategy = require('passport-local').Strategy;
+var cookieParser = require('cookie-parser');
+
 
 
 // nconf is going to store our configuration items in config.json
@@ -15,6 +21,39 @@ nconf.file({
 
 var smsText = nconf.get('smsText');
 
+passport.use(new LocalStrategy(
+  function(username, password, done) {
+    mruser = nconf.get('mrUser');
+    mrpass = nconf.get('mrPass');
+    if (mruser != username) {
+      return done(null, false, { message: 'Incorrect username.'});
+    }
+    if (mrpass != password) {
+      return done(null, false, { message: 'Incorrect password'});
+    }
+    return done(null, mruser);
+    /*
+    User.findOne({ username: username }, function (err, user) {
+      if (err) { return done(err); }
+      if (!user) {
+        return done(null, false, { message: 'Incorrect username.' });
+      }
+      if (!user.validPassword(password)) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    });*/
+    //return done(null, "joeBob");
+  }
+));
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+  done(null, user);
+});
 
 // if we're using AppFog, we may be using a bound database
 if (process.env.VCAP_SERVICES) {
@@ -134,11 +173,37 @@ var app = express();
 // instruct the app to use the `bodyParser()` middleware for all routes
 //app.use(bodyParser());
 
+app.use(cookieParser('optional secret and fun string'));
+app.use(session({secret: 'keyboard cat ftW1', saveUninitialized: true, resave: true}))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
   extended: true
 }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// does not protect behind passport.js 
 app.use('/public', express.static('public'));
+app.use('/private', express.static('private'));
+
+app.all('/private/*', function(req,res,next) {
+  if (req.session.loggedIn) {
+    next(); // go to next route
+  } else {
+    res.redirect("/public/login.html");
+  }
+});
+/* failed
+app.use('/public', function(req,res,next) {
+  console.log('req.user: ' + req.user);
+  if (req.user) {
+    //return express.static('public');
+    return express.static(path.join(__dirname, 'public'));
+    //app.use('/public', express.static('public'));
+  } else {
+    res.redirect('/login/login.html');
+  }
+});*/
 
 //app.use(express.session({secret: '59B93087-78BC-4EB9-993A-DD17C844F6C9'}));
 
@@ -151,7 +216,7 @@ var pagee = [];
 // A browser's default method is 'GET', so this
 // is the route that express uses when we visit
 // our site initially.
-app.get('/', function(req, res){
+app.get('/', isLoggedIn, function(req, res){
   // The form's action is '/' and its method is 'POST',
   // so the `app.post('/', ...` route will receive the
   // result of our form
@@ -166,13 +231,20 @@ app.get('/', function(req, res){
             '</form>';*/
 
   var html = '<title>Welcome to Mr. Pager</title>\n' +
-          '<a href="/public/entry.html">Concierge Page</a>\n' +
-          '<a href="/public/pagelist.html">Service Counter Page</a>\n' +
+          '<a href="/private/entry.html">Concierge Page</a>\n' +
+          '<a href="/private/pagelist.html">Service Counter Page</a>\n' +
           '<a href="/public/status.html">Status Board</a>\n' + 
-          '<a href="/public/admin.html">Config</a>\n';
+          '<a href="/private/admin.html">Config</a>\n' +
+          '<a href="/logout">Log out</a>\n';
                
   res.send(html);
 });
+
+app.post('/login',
+  passport.authenticate('local', { successRedirect: '/',
+                                   failureRedirect: '/public/login.html',
+                                   failureFlash: false })
+);
 
 app.get('/pagetext', function(req, res) {
   res.send(smsText);
@@ -409,17 +481,40 @@ app.get('/doarrived:id', function(req, res) {
       console.dir(thisPageEvent);
     });
 
-
-
-
-
   });
 
   
 });
 
+// route middleware to make sure a user is logged in
+function isLoggedIn(req, res, next) {
 
-app.get('/doremove:id', function(req, res) {
+  // if user is authenticated in the session, carry on 
+  if (req.isAuthenticated())
+    return next();
+
+  // if they aren't redirect them to the home page
+  res.redirect('/public/login.html');
+}
+
+
+app.get('/login', function(req, res, next) {
+  passport.authenticate('local', function(err, user, info) {
+    if (err) { return next(err); }
+    if (!user) { return res.redirect('/login'); }
+    req.logIn(user, function(err) {
+      if (err) { return next(err); }
+      return res.redirect('/users/' + user.username);
+    });
+  })(req, res, next);
+});
+
+app.get('/logout', function(req, res) {
+    req.logout();
+    res.redirect('/public/login.html');
+  });
+
+app.get('/doremove:id', isLoggedIn, function(req, res) {
   var id = req.params.id;
   console.log('remove: ', req.params.id);
   
@@ -483,7 +578,7 @@ app.get('/doremove:id', function(req, res) {
 
 });
 
-app.get('/average', function(req, res) {
+app.get('/average', isLoggedIn, function(req, res) {
   var totalTime=0;
   var totalPaged=0;
 
@@ -571,85 +666,16 @@ function buildTableToPage(customers) {
 
     html += '</tbody>\n';
     html += '</table>\n';
-    //console.log(html);
+    console.log(html);
     return html;
   
 
 
 };
 
-/*
-function buildTableOld() {
-  var maxComplaintLength = 25;
-
-  var html = '<head><link rel="stylesheet" type="text/css" href="style.css"></head>';
-  html += '<h3>Unpaged</h3>';
-  html += '<table>\n';
-  html += '<thead>\n';
-  html += '<tr><th>#</th><th>Name</th><th>Cell No</th><th>CheckIn Time</th><th>Summary</th><th colspan="2">Actions</th></tr>\n'
-  html += '</thead>\n';
-
-  html += '<tbody>\n';
-
-  //for(i=pagee.length; i>=0; i--) {
-  for(i=0; i<pagee.length; i++ ) {
-    if (!pagee[i]) continue;
-    if (pagee[i].paged == false) {
-      console.log('pagee[' + i + ']: ' + pagee[i].userName + ', ' + pagee[i].phoneNo);
-      html += '<tr>\n';
-      html += '<td>\n' + i + '</td>\n';
-      html += '<td>\n' + pagee[i].userName + '</td>\n';
-      html += '<td>\n' + pagee[i].phoneNo + '</td>\n';
-
-      html += '<td>\n' + pagee[i].logged.toLocaleTimeString() + '</td>\n';
-      html += '<td>\n' + pagee[i].complaint.substring(0,maxComplaintLength) + '</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doPage(' + i + ')" >' + 'Page' + '</button>' +'</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doRemove(' + i + ')" >' + 'Remove' + '</button>' +'</td>\n';
-      //html += '<td>\n' + '<button type="button" name="' + 'remove-' + pagee[i].userName + '^' + pagee[i].phoneNo + '">' + 'Remove' + '</button>' +'</td>\n';
-      html += '</tr>\n';
-    }
-  }
-
-  html += '</tbody>\n';
-  html += '</table>\n';
 
 
-  html += '<h3>Paged, but not arrived</h3>';
-  html += '<table>\n';
-  html += '<thead>\n';
-  html += '<tr><th>#</th><th>Name</th><th>Cell No</th><th>CheckIn Time</th><th>Last Paged</th><th>Summary</th><th colspan="3">Actions</th></tr>\n'
-  html += '</thead>\n';
-
-
-  html += '<tbody>\n';
-  //for(i=pagee.length; i>=0; i--) {
-  for(i=0; i<pagee.length; i++ ) {
-    if (!pagee[i]) continue;
-    if ((pagee[i].paged > 0) && (pagee[i].answered == false)) {
-      var pCount = pagee[i].pageCount + 1;
-      console.log('pagee[' + i + ']: ' + pagee[i].userName + ', ' + pagee[i].phoneNo);
-      html += '<tr>\n';
-      html += '<td>\n' + i + '</td>\n';
-      html += '<td>\n' + pagee[i].userName + '</td>\n';
-      html += '<td>\n' + pagee[i].phoneNo + '</td>\n';
-      html += '<td>\n' + pagee[i].logged.toLocaleTimeString() + '</td>\n';
-      if (pagee[i].paged > 0) {html += '<td>\n' + pagee[i].paged.toLocaleTimeString() + '</td>\n';}
-      html += '<td>\n' + pagee[i].complaint.substring(0,maxComplaintLength) + '</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doPage(' + i + ')" >' + 'Page x' + pCount + '</button>' +'</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doArrived(' + i + ')" >' + 'Arrived' + '</button>' +'</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doRemove(' + i + ')" >' + 'Remove' + '</button>' +'</td>\n';
-      html += '</tr>\n';
-    }
-  }
-  html += '</tbody>\n';
-  html += '</table>\n';  
-
-  return html;
-}
-*/
-
-
-app.get('/waitlist', function(req, res) {
+app.get('/waitlist', isLoggedIn, function(req, res) {
 
 var html;
 var maxComplaintLength = 25;
@@ -657,37 +683,6 @@ var maxComplaintLength = 25;
 
   Customer.find({status: 'new'}, null, {_id: -1}, function(err,customers) {
     html = buildTableToPage(customers);
-/*
-    html = '<head><link rel="stylesheet" type="text/css" href="style.css"></head>';
-    html += '<h3>Unpaged</h3>';
-    html += '<table>\n';
-    html += '<thead>\n';
-    html += '<tr><th>#</th><th>Name</th><th>Cell No</th><th>CheckIn Time</th><th>Summary</th><th colspan="2">Actions</th></tr>\n'
-    html += '</thead>\n';
-
-    html += '<tbody>\n';
-
-
-    customers.forEach(function(customer) {
-      //console.log('custName: ' + customer.custName);
-
-      html += '<tr>\n';
-      html += '<td>' + customer._id + '</td>\n';
-      html += '<td>' + customer.custName + '</td>\n';
-      html += '<td>' + customer.custPhoneNo + '</td>\n';
-      html += '<td>' + customer.logged.toLocaleTimeString() + '</td>\n';
-      html += '<td>' + customer.custIssue.substring(0,maxComplaintLength) + '</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doPage(' + '\'' + customer._id + '\'' + ')" >' + 'Page' + '</button>' +'</td>\n';
-      html += '<td>\n' + '<button type="button" onclick="doRemove(' + '\'' + customer._id + '\'' + ')" >' + 'Remove' + '</button>' +'</td>\n';
-  
-      html += '</tr>\n';
-      //console.log(html);
-
-    });
-
-    html += '</tbody>\n';
-    html += '</table>\n';
-    //console.log(html);*/
     res.send(html);
   });
 
@@ -716,6 +711,7 @@ function buildPagedTable (customers) {
       thisIndex++;
 
       html += '<tr>\n';
+      // uncomment if you want the GUID in the table 
       //html += '<td>' + customer._id + '</td>\n';
       html += '<td>' + thisIndex + '</td>\n';
       html += '<td>' + customer.custName + '</td>\n';
@@ -723,7 +719,7 @@ function buildPagedTable (customers) {
       html += '<td>' + customer.logged.toLocaleTimeString() + '</td>\n';
       html += '<td>' + customer.lastPaged.toLocaleTimeString() + '</td>\n';
       html += '<td>' + customer.custIssue.substring(0,maxComplaintLength) + '</td>\n';
-      //html += '<td>\n' + '<button type="button" onclick="doPage(' + '\'' + customer._id + '\'' + ')" >' + 'Page' + '</button>' +'</td>\n';
+    
       var thisPageCount =  customer.pageCount + 1;
       var pageLabel = 'Page x' + thisPageCount;
       html += '<td>\n' + '<button type="button" id="' + customer._id + '"  onclick="doPage(' + '\'' + customer._id + '\'' + ')" >' + pageLabel + '</button>' +'</td>\n';
@@ -737,13 +733,11 @@ function buildPagedTable (customers) {
       
   
       html += '</tr>\n';
-      //console.log(html);
 
     });
 
     html += '</tbody>\n';
     html += '</table>\n';
-    //console.log(html);
     return html;
 }
 
@@ -762,7 +756,7 @@ var html='';
 });
 
 // Receive our updated smsText and save to config
-app.post('/postSMS', function(req, res) {
+app.post('/postSMS', isLoggedIn, function(req, res) {
   console.log('postSMS');
   var newSMS = req.body.firstPage;
   smsText = newSMS;
@@ -775,34 +769,18 @@ app.post('/postSMS', function(req, res) {
     console.log('Configuration saved successfully.');
   });
 
-  res.redirect('/public/admin.html');
+  res.redirect('/private/admin.html');
 });
 
 app.get('/postSMS', function(req, res) {
   console.log('get not post');
 });
 
-function doCSV(res, data) {
-  /*csv()
-  .from(data)
-  .on('end', function(){ console.log('done') })*/
-  csv()
-  .from('"1","2","3","4"\n"a","b","c","d"')
-  .on('end', function(){ console.log('done') })
 
-  res.send(data);
-}
+app.get('/report', isLoggedIn, function(req, res) {
+  // I looked at several CSV packages, but none were 
+  // straightforward enough when I could just roll my own
 
-app.get('/csvtest', function(req,res) {
-  input = [ [ '1', '2', '3', '4' ], [ 'a', 'b', 'c', 'd' ] ];
-  csvstringify(input, function(err, output){
-    console.log(output);
-  });
-  res.send('hi');
-});
-
-
-app.get('/report', function(req, res) {
   var myCSVC;
   var myCSV;
 
@@ -856,7 +834,7 @@ app.get('/report', function(req, res) {
 
 });
 
-app.get('/reportlog', function(req, res) {
+app.get('/reportlog', isLoggedIn, function(req, res) {
   var EventDoc = mongoose.model('Event', eventSchema);
 
   /*
@@ -926,7 +904,7 @@ app.get('/reportlog', function(req, res) {
 });
 
 
-app.post('/submitNew', function(req, res){
+app.post('/submitNew', isLoggedIn, function(req, res){
   var userName = req.body.userName;
   var phoneNo = req.body.phoneNo;
   var complaint = req.body.complaint;
@@ -977,18 +955,11 @@ app.post('/submitNew', function(req, res){
 
     Customer.find({status: 'new'}, null, {_id: -1}, function(err,customers) {
       var html = buildTableToPage(customers);
-      //res.sendfile('public/entry.html', {root: __dirname })
       res.send(html);
       //console.log(html);
     });
 
   });
-
-
-
-  //res.send(waitTable);
-
-
 
   
 });
@@ -1021,8 +992,9 @@ app.get('/incomingSMS', function(req, res) {
 
 app.post('/incomingSMS', function(req, res) {
   console.log('post - incoming SMS!');
-  //res.send('quick return');
 
+  // twilio is supposed to have a cool feature to validate, but
+  // it didn't work for me
   //if (twilio.validateExpressRequest(req, twiAuthToken)) {
     var twiml = new twilio.TwimlResponse();
     var MessageSid = req.body.MessageSid;
@@ -1043,11 +1015,7 @@ app.post('/incomingSMS', function(req, res) {
 
 
     Customer.findOne({custPhoneNo: searchNum, status:'paged'}, function(err,customer) {
-      console.log ('In search for phoneNo');
-
-      //customers.forEach(function(customer) {
-      console.log('found a match');
-
+      
       console.log(customer);
 
       if (customer.reply) {
@@ -1056,7 +1024,6 @@ app.post('/incomingSMS', function(req, res) {
       else {
         customer.reply = Body;
       }
-      //});
 
       customer.save(function (err) {
         console.log('in save');
@@ -1074,21 +1041,12 @@ app.post('/incomingSMS', function(req, res) {
         }
       });
     });
-
-    /*var accountSid = twiSID;
-    var authToken = twiAuthToken;
-    var client = require('twilio')(accountSid, authToken);
-    client.sms.messages(MessageSid).get(function(err, sms) {
-      console.log(sms.body);
-    });*/
   //}
   /*else {
     res.send('you are not twilio.  Buzz off.');
     console.log('rejected request');
   }*/
 });
-
-//app.post('/page/:task_id', tasks.markCompleted);
 
 // Catch all for a clean error for anything not handled above
 app.all('*', function(req, res){

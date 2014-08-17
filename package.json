@@ -9,8 +9,12 @@
     "twilio" : "*",
     "mongoose": "3.8.x",
     "nconf"  : "*",
+    "cookie-parser" : "*",
+    "express-session" : "*",
     "body-parser" : "*",
-    "mongodb-uri" : "*"
+    "mongodb-uri" : "*",
+    "passport" : "*",
+    "passport-local": "*"
   },
   "version" : "0.0.1"
 }

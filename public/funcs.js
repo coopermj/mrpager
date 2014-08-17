@@ -84,10 +84,6 @@ function doPage(id) {
 			}	
 		}
 	  }
-
-	  
-
-	//pageStarter();
 }
 
 function doArrived(id) {
@@ -100,7 +96,6 @@ function doArrived(id) {
 			document.getElementById("listOfInvited").innerHTML=xmlhttp.responseText;			
 		}
 	}
-	//pageStarter();
 }
 
 function doRemove(id) {
@@ -110,7 +105,6 @@ function doRemove(id) {
 	xmlhttp.onreadystatechange = function() {
 		pageStarter();
 	}
-	
 }
 
 function validatePhone(fld) {
@@ -132,20 +126,15 @@ function validatePhone(fld) {
 
 
 function submitEntry() {
-	//console.log('in submit');
 	var userName = encodeURIComponent(document.getElementsByName('userName')[0].value);
-	//var phoneNo = encodeURIComponent(document.getElementsByName('phoneNo')[0].value);
 	var complaint = encodeURIComponent(document.getElementsByName('complaint')[0].value);
-	//console.log(userName + phoneNo + complaint);
 
-	// validate the phone number
-	//if phonenumber(phoneNo) {
+	// validate the phone number, then strip everything to numbers
 	var valError = validatePhone(document.getElementsByName('phoneNo')[0]);
 	if (valError != '') {
 		alert(valError);
 	} 
 	else {
-		//myString = myString.replace(/\D/g,"");
 		var stripped = document.getElementsByName('phoneNo')[0].value.replace(/\D/g,"");
 		var phoneNo = encodeURIComponent(stripped);
 		var parameters = 'userName='+userName+'&phoneNo='+phoneNo+'&complaint='+complaint;
@@ -155,7 +144,6 @@ function submitEntry() {
 		xmlhttp.onreadystatechange = function() {
 			if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
 				document.getElementById("listOfPagees").innerHTML=xmlhttp.responseText;
-				//pageStarter();
 			}
 		}
 
