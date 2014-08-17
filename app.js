@@ -19,7 +19,22 @@ nconf.file({
     search: false
   });
 
+nconf.defaults({
+  'smsText' : "You're next! Please come to the Counter for assistance.",
+  "TWILIO_ACCOUNT_SID": "GETYOUROWN",
+  "TWILIO_AUTH_TOKEN": "GETYOUROWN",
+  "twilioNumber": "+01GETYOUROWN",
+  "mongoUser": "mrpager",
+  "mongoPass": "awesomepassword",
+  "mongoHost": "awesomehost.com",
+  "mongoPort": "27759",
+  "mongoDB": "mrpager-log",
+  "mrUser": "aj",
+  "mrPass": "pass"
+});
+
 var smsText = nconf.get('smsText');
+console.log('smstest: ' + smsText);
 
 passport.use(new LocalStrategy(
   function(username, password, done) {
